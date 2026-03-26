@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://chat-app-backend-smoky-five.vercel.app').replace(/\/$/, '');
+
 export default function SendLinkForm({ roomId }) {
   const [phone, setPhone] = useState('');
   const [status, setStatus] = useState({ type: '', text: '' });
@@ -19,7 +21,7 @@ export default function SendLinkForm({ roomId }) {
     setStatus({ type: '', text: '' });
 
     try {
-      const response = await fetch('http://localhost:5000/send-link', {
+      const response = await fetch(`${API_BASE_URL}/send-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

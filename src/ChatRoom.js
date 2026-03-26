@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://chat-app-backend-smoky-five.vercel.app').replace(/\/$/, '');
+
 export default function ChatRoom({ roomId }) {
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
@@ -9,7 +11,7 @@ export default function ChatRoom({ roomId }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    const socket = io('http://localhost:5000', {
+    const socket = io(API_BASE_URL, {
       transports: ['websocket', 'polling'],
     });
     socketRef.current = socket;

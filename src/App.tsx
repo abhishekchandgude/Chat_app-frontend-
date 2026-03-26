@@ -18,7 +18,13 @@ type SendLinkResponse = {
   error?: string
 }
 
-const socket = io('http://localhost:5000', {
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL ?? 'https://chat-app-backend-smoky-five.vercel.app').replace(
+    /\/$/,
+    '',
+  )
+
+const socket = io(API_BASE_URL, {
   autoConnect: false,
 })
 
@@ -167,7 +173,7 @@ function App() {
     setSuccessMessage('')
 
     try {
-      const response = await fetch('http://localhost:5000/send-link', {
+      const response = await fetch(`${API_BASE_URL}/send-link`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
