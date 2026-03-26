@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? 'https://chat-app-backend-smoky-five.vercel.app').replace(/\/$/, '');
+import { API_BASE_URL } from './config';
 
 export default function SendLinkForm({ roomId }) {
   const [phone, setPhone] = useState('');

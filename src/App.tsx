@@ -1,5 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
+import { API_BASE_URL, SOCKET_URL } from './config'
 import './App.css'
 
 type ChatMessage = {
@@ -18,15 +19,11 @@ type SendLinkResponse = {
   error?: string
 }
 
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL ?? 'https://chat-app-backend-smoky-five.vercel.app').replace(
-    /\/$/,
-    '',
-  )
-
-const socket = io(API_BASE_URL, {
-  autoConnect: false,
-})
+const socket = SOCKET_URL
+  ? io(SOCKET_URL, {
+      autoConnect: false,
+    })
+  : null
 
 function getOrCreateSenderName() {
   const storedName = window.localStorage.getItem('chat_sender_name')?.trim()
@@ -74,6 +71,11 @@ function App() {
   }, [roomId])
 
   useEffect(() => {
+    if (!socket) {
+      setIsConnected(false)
+      return
+    }
+
     const joinCurrentRoom = () => {
       const activeRoomId = currentRoomIdRef.current
       if (!activeRoomId) {
@@ -119,7 +121,7 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!roomId || !socket.connected) {
+    if (!socket || !roomId || !socket.connected) {
       return
     }
 
@@ -145,7 +147,7 @@ function App() {
 
   useEffect(() => {
     return () => {
-      socket.disconnect()
+      socket?.disconnect()
       connectedOnceRef.current = false
     }
   }, [])
@@ -213,7 +215,7 @@ function App() {
     event.preventDefault()
 
     const trimmedMessage = messageText.trim()
-    if (!trimmedMessage || !roomId) {
+    if (!trimmedMessage || !roomId || !socket) {
       return
     }
 
@@ -251,7 +253,7 @@ function App() {
             </div>
           </div>
           <span className={`status-badge ${isConnected ? 'active' : 'idle'}`}>
-            {isConnected ? 'Connected' : 'Connecting'}
+            {socket ? (isConnected ? 'Connected' : 'Connecting') : 'Realtime unavailable'}
           </span>
         </header>
 
@@ -299,7 +301,7 @@ function App() {
                 </div>
               ) : (
                 messages.map((chatMessage) => {
-                  const isSelf = Boolean(socket.id && chatMessage.id.startsWith(`${socket.id}-`))
+                  const isSelf = Boolean(socket?.id && chatMessage.id.startsWith(`${socket.id}-`))
 
                   return (
                     <article
