@@ -36,6 +36,12 @@ function getOrCreateSenderName() {
   return generatedName
 }
 
+function normalizeIndiaPhone(value: string) {
+  const digits = value.replace(/\D/g, '')
+  const nationalNumber = digits.startsWith('91') ? digits.slice(2) : digits
+  return `+91${nationalNumber ? ` ${nationalNumber}` : ''}`
+}
+
 function App() {
   const initialRoomId = useMemo(
     () => new URLSearchParams(window.location.search).get('room')?.trim() || '',
@@ -43,23 +49,50 @@ function App() {
   )
 
   const [roomId, setRoomId] = useState(initialRoomId)
-  const [friendPhone, setFriendPhone] = useState('')
+  const [friendPhone, setFriendPhone] = useState('+91')
   const [inviteMessage, setInviteMessage] = useState('Your chat room is ready.')
   const [messageText, setMessageText] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isSendingLink, setIsSendingLink] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
   const [socketError, setSocketError] = useState('')
+  const [roomStatusMessage, setRoomStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [senderName] = useState(() => getOrCreateSenderName())
   const [isComposerMenuOpen, setIsComposerMenuOpen] = useState(false)
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false)
   const currentRoomIdRef = useRef(roomId)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const connectedOnceRef = useRef(false)
   const composerMenuRef = useRef<HTMLDivElement | null>(null)
 
-  const quickEmoji = ['😀', '😂', '❤️', '🔥', '👏', '😎', '🎉', '👍']
+  const quickEmoji = [
+    '😀',
+    '😂',
+    '😍',
+    '❤️',
+    '🔥',
+    '👏',
+    '👍',
+    '🎉',
+    '✨',
+    '💯',
+    '🙏',
+    '😎',
+    '💪',
+    '🥳',
+    '🤝',
+    '💖',
+    '😄',
+    '😉',
+    '🙌',
+    '🚀',
+    '⭐',
+    '💥',
+    '🌟',
+    '🎯',
+  ]
   const quickActions = [
     { label: 'Photo', value: '📷' },
     { label: 'Location', value: '📍' },
@@ -70,6 +103,7 @@ function App() {
   useEffect(() => {
     currentRoomIdRef.current = roomId
     setMessages([])
+    setRoomStatusMessage('')
   }, [roomId])
 
   useEffect(() => {
@@ -90,17 +124,22 @@ function App() {
     const handleConnect = () => {
       setIsConnected(true)
       setSocketError('')
+      if (currentRoomIdRef.current) {
+        setRoomStatusMessage('Connected to room')
+      }
       joinCurrentRoom()
     }
 
     const handleDisconnect = (reason: string) => {
       setIsConnected(false)
       setSocketError(`Disconnected: ${reason}`)
+      setRoomStatusMessage('')
     }
 
     const handleConnectError = (error: Error) => {
       setIsConnected(false)
       setSocketError(error.message || 'Connection failed.')
+      setRoomStatusMessage('')
     }
 
     const handleReceiveMessage = (incomingMessage: ChatMessage) => {
@@ -180,10 +219,10 @@ function App() {
   const handleCreateRoom = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const trimmedPhone = friendPhone.trim()
+    const trimmedPhone = normalizeIndiaPhone(friendPhone).trim()
     const trimmedMessage = inviteMessage.trim()
 
-    if (!trimmedPhone) {
+    if (trimmedPhone === '+91' || trimmedPhone.length <= 3) {
       setErrorMessage("Please enter your friend's mobile number.")
       setSuccessMessage('')
       return
@@ -244,6 +283,17 @@ function App() {
       return
     }
 
+    const localMessage: ChatMessage = {
+      id: `${socket.id ?? 'local'}-${Date.now()}`,
+      room: roomId,
+      message: trimmedMessage,
+      sender: senderName,
+      time: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+    }
+
     const outgoingMessage = {
       room: roomId,
       message: trimmedMessage,
@@ -251,7 +301,32 @@ function App() {
     }
 
     socket.emit('send_message', outgoingMessage)
+    setMessages((currentMessages) => [...currentMessages, localMessage])
     setMessageText('')
+  }
+
+  const handleCloseRoom = () => {
+    if (!roomId) {
+      return
+    }
+
+    setIsCloseConfirmOpen(true)
+  }
+
+  const confirmCloseRoom = () => {
+    setRoomId('')
+    setMessages([])
+    setMessageText('')
+    setErrorMessage('')
+    setSuccessMessage('')
+    setSocketError('')
+    setRoomStatusMessage('')
+    setIsCloseConfirmOpen(false)
+    window.history.replaceState({}, '', window.location.pathname)
+  }
+
+  const cancelCloseRoom = () => {
+    setIsCloseConfirmOpen(false)
   }
 
   const appendToComposer = (value: string) => {
@@ -271,12 +346,26 @@ function App() {
               {roomId ? <p className="room-pill">Live room</p> : null}
             </div>
           </div>
-          <span className={`status-badge ${isConnected ? 'active' : 'idle'}`}>
-            {socket ? (isConnected ? 'Connected' : 'Connecting') : 'Realtime unavailable'}
-          </span>
+          <div className="header-actions">
+            {roomId ? (
+              <button type="button" className="close-room-button" onClick={handleCloseRoom}>
+                Close room
+              </button>
+            ) : null}
+            <span className={`status-badge ${isConnected ? 'active' : 'idle'}`}>
+              {roomId
+                ? socket
+                  ? isConnected
+                    ? 'Connected'
+                    : 'Connecting'
+                  : 'Realtime unavailable'
+                : 'Ready to create'}
+            </span>
+          </div>
         </header>
 
         {socketError ? <p className="status-message error">{socketError}</p> : null}
+        {roomStatusMessage ? <p className="room-status-banner">{roomStatusMessage}</p> : null}
 
         {!roomId ? (
           <section className="panel-card centered-card">
@@ -291,7 +380,9 @@ function App() {
                 className="chat-input"
                 placeholder="Friend's mobile number"
                 value={friendPhone}
-                onChange={(event) => setFriendPhone(event.target.value)}
+                onChange={(event) => setFriendPhone(normalizeIndiaPhone(event.target.value))}
+                inputMode="numeric"
+                autoComplete="tel"
               />
               <input
                 type="text"
@@ -323,7 +414,8 @@ function App() {
               ) : (
                 messages.map((chatMessage, index) => {
                   const isSelf = Boolean(
-                    socket?.id && chatMessage.id?.startsWith(`${socket.id}-`),
+                    (socket?.id && chatMessage.id?.startsWith(`${socket.id}-`)) ||
+                      chatMessage.sender === senderName,
                   )
                   const messageKey =
                     chatMessage.id ?? `${chatMessage.room}-${chatMessage.sender}-${index}`
@@ -417,6 +509,49 @@ function App() {
             </form>
           </>
         )}
+
+        {isCloseConfirmOpen ? (
+          <div
+            className="confirm-overlay"
+            role="presentation"
+            onClick={cancelCloseRoom}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                cancelCloseRoom()
+              }
+            }}
+          >
+            <div
+              className="confirm-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="close-room-title"
+              aria-describedby="close-room-description"
+              tabIndex={-1}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  cancelCloseRoom()
+                }
+              }}
+            >
+              <div className="confirm-icon">!</div>
+              <h2 id="close-room-title">Close room?</h2>
+              <p id="close-room-description">
+                Close this room and leave the chat? This will clear the current room view on your
+                device.
+              </p>
+              <div className="confirm-actions">
+                <button type="button" className="confirm-cancel" onClick={cancelCloseRoom}>
+                  Cancel
+                </button>
+                <button type="button" className="confirm-close" onClick={confirmCloseRoom}>
+                  Close room
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </main>
   )

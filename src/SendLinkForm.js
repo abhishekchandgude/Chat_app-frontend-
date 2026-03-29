@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
 import { API_BASE_URL } from './config';
 
+function normalizeIndiaPhone(value) {
+  const digits = value.replace(/\D/g, '');
+  const nationalNumber = digits.startsWith('91') ? digits.slice(2) : digits;
+  return `+91${nationalNumber ? ` ${nationalNumber}` : ''}`;
+}
+
 export default function SendLinkForm({ roomId }) {
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+91');
   const [status, setStatus] = useState({ type: '', text: '' });
   const [isSending, setIsSending] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const trimmedPhone = phone.trim();
+    const trimmedPhone = normalizeIndiaPhone(phone).trim();
 
-    if (!trimmedPhone) {
+    if (trimmedPhone === '+91' || trimmedPhone.length <= 3) {
       setStatus({ type: 'error', text: 'Please enter a phone number.' });
       return;
     }
@@ -69,10 +75,12 @@ export default function SendLinkForm({ roomId }) {
         <input
           type="tel"
           value={phone}
-          onChange={(event) => setPhone(event.target.value)}
+          onChange={(event) => setPhone(normalizeIndiaPhone(event.target.value))}
           placeholder="+1 555 123 4567"
           style={styles.input}
           disabled={isSending}
+          inputMode="numeric"
+          autoComplete="tel"
         />
         <button type="submit" style={styles.button} disabled={isSending}>
           {isSending ? 'Sending...' : 'Send link'}
