@@ -48,7 +48,7 @@ export default defineConfig([
 Create a local `.env` file from `.env.example` and set:
 
 ```env
-VITE_API_BASE_URL=https://codebuddybackend-wwjm.onrender.com
+VITE_API_BASE_URL=https://chat-app-backend-5x7i.onrender.com
 VITE_SOCKET_URL=http://localhost:5000
 ```
 
