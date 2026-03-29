@@ -43,6 +43,18 @@ export default defineConfig([
 ])
 ```
 
+## Environment Variables
+
+Create a local `.env` file from `.env.example` and set:
+
+```env
+VITE_API_BASE_URL=https://codebuddybackend-wwjm.onrender.com
+VITE_SOCKET_URL=http://localhost:5000
+```
+
+`VITE_API_BASE_URL` is used for REST endpoints like `/health` and `/send-link`.
+`VITE_SOCKET_URL` must point to your always-on Socket.IO server for realtime chat.
+
 You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
 ```js

@@ -1,7 +1,7 @@
 const normalizeUrl = (value: string) => value.replace(/\/$/, '')
 
 export const API_BASE_URL = normalizeUrl(
-  import.meta.env.VITE_API_BASE_URL ?? 'https://chat-app-backend-smoky-five.vercel.app',
+  import.meta.env.VITE_API_BASE_URL ?? 'https://codebuddybackend-wwjm.onrender.com',
 )
 
 export const SOCKET_URL = normalizeUrl(
