@@ -4,11 +4,11 @@ import { API_BASE_URL, SOCKET_URL } from './config'
 import './App.css'
 
 type ChatMessage = {
-  id: string
+  id?: string
   room: string
   message: string
   sender: string
-  time: string
+  time?: string
 }
 
 type SendLinkResponse = {
@@ -49,6 +49,7 @@ function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isSendingLink, setIsSendingLink] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
+  const [socketError, setSocketError] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
   const [senderName] = useState(() => getOrCreateSenderName())
@@ -68,6 +69,7 @@ function App() {
 
   useEffect(() => {
     currentRoomIdRef.current = roomId
+    setMessages([])
   }, [roomId])
 
   useEffect(() => {
@@ -87,11 +89,18 @@ function App() {
 
     const handleConnect = () => {
       setIsConnected(true)
+      setSocketError('')
       joinCurrentRoom()
     }
 
-    const handleDisconnect = () => {
+    const handleDisconnect = (reason: string) => {
       setIsConnected(false)
+      setSocketError(`Disconnected: ${reason}`)
+    }
+
+    const handleConnectError = (error: Error) => {
+      setIsConnected(false)
+      setSocketError(error.message || 'Connection failed.')
     }
 
     const handleReceiveMessage = (incomingMessage: ChatMessage) => {
@@ -100,7 +109,21 @@ function App() {
           return currentMessages
         }
 
-        return [...currentMessages, incomingMessage]
+        return [
+          ...currentMessages,
+          {
+            ...incomingMessage,
+            id:
+              incomingMessage.id ??
+              `${incomingMessage.room}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            time:
+              incomingMessage.time ??
+              new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+          },
+        ]
       })
     }
 
@@ -111,11 +134,13 @@ function App() {
 
     socket.on('connect', handleConnect)
     socket.on('disconnect', handleDisconnect)
+    socket.on('connect_error', handleConnectError)
     socket.on('receive_message', handleReceiveMessage)
 
     return () => {
       socket.off('connect', handleConnect)
       socket.off('disconnect', handleDisconnect)
+      socket.off('connect_error', handleConnectError)
       socket.off('receive_message', handleReceiveMessage)
     }
   }, [])
@@ -219,19 +244,13 @@ function App() {
       return
     }
 
-    const outgoingMessage: ChatMessage = {
-      id: `${socket.id ?? 'local'}-${Date.now()}`,
+    const outgoingMessage = {
       room: roomId,
       message: trimmedMessage,
       sender: senderName,
-      time: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
     }
 
     socket.emit('send_message', outgoingMessage)
-    setMessages((currentMessages) => [...currentMessages, outgoingMessage])
     setMessageText('')
   }
 
@@ -256,6 +275,8 @@ function App() {
             {socket ? (isConnected ? 'Connected' : 'Connecting') : 'Realtime unavailable'}
           </span>
         </header>
+
+        {socketError ? <p className="status-message error">{socketError}</p> : null}
 
         {!roomId ? (
           <section className="panel-card centered-card">
@@ -300,13 +321,17 @@ function App() {
                   <p>Send a message to start the conversation.</p>
                 </div>
               ) : (
-                messages.map((chatMessage) => {
-                  const isSelf = Boolean(socket?.id && chatMessage.id.startsWith(`${socket.id}-`))
+                messages.map((chatMessage, index) => {
+                  const isSelf = Boolean(
+                    socket?.id && chatMessage.id?.startsWith(`${socket.id}-`),
+                  )
+                  const messageKey =
+                    chatMessage.id ?? `${chatMessage.room}-${chatMessage.sender}-${index}`
 
                   return (
                     <article
                       className={`message-row ${isSelf ? 'self' : 'other'}`}
-                      key={chatMessage.id}
+                      key={messageKey}
                     >
                       <div className={`message-bubble ${isSelf ? 'self' : 'other'}`}>
                         <div className="message-topline">
